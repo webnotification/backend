@@ -1,8 +1,9 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
-from notification.models import User, Group, User_Group
+from notification.models import User, Group, User_Group, PermissionResponse, NotificationResponse
 import random
-
+from django.db.models import Count
+from django.db import IntegrityError
 
 def index(request):
     return HttpResponse("Hello, Welcome to our notification homepage.")
@@ -43,7 +44,7 @@ def save_push_key(request):
     user = User.objects.filter(id=id, website=website)[0]
     user.push_key = push_key
     user.save()
-    return HttpResponse("Done!")
+    return JsonResponse({'success': True})
 
 def send_notification(request):
     params = request.POST
@@ -51,6 +52,55 @@ def send_notification(request):
     notification_data = params['notification_data']
     group_id = params['group_id']
     # Add to queue and send
-    return HttpResponse("Done!")
+    return JsonResponse({'success': True})
 
+def send_permission_response(request):
+    params = request.GET
+    user_id = params['user_id']
+    action = params['action']
+    try:
+        permissionresponse = PermissionResponse(user_id=user_id, action=action)
+        permissionresponse.save()
+        response = {'success': True}
+    except IntegrityError:
+        response = {'error': 'Permission already set'}
+    except Exception as e:
+        response = {'error': e}
+    return JsonResponse(response)
+
+def send_notification_response(request):
+    params = request.GET
+    user_id = params['user_id']
+    notification_id = params['notification_id']
+    action = params['action']
+    try:
+        notificationresponse = NotificationResponse(user_id=user_id, notification_id=notification_id, action=action)
+        notificationresponse.save()
+        response = {'success': True}
+    except IntegrityError:
+        response = {'error': 'Notification Status already set'}
+    except Exception as e:
+        response = {'error': e.message}
+    return JsonResponse(response)
+
+def get_permission_CTR(request):
+    params = request.GET
+    group_id = params['group_id']
+    user_list = User_Group.objects.filter(group_id=group_id).values('user_id')
+    user_id_list = [user['user_id'] for user in user_list]
+    permission_CTR = PermissionResponse.objects.filter(user_id__in=user_id_list).values('action').annotate(ct=Count('action'))
+    response = {'result': list(permission_CTR)}
+    return JsonResponse(response)
+   
+def get_notification_CTR(request):
+    params = request.GET
+    group_id = params['group_id']
+    notification_id = params['notification_id']
+    user_list = User_Group.objects.filter(group_id=group_id).values('user_id')
+    user_id_list = [user['user_id'] for user in user_list]
+    notification_CTR = NotificationResponse.objects.filter(user_id__in=user_id_list, notification_id=notification_id).\
+            values('action').annotate(ct=Count('action'))
+    response = {'result': list(notification_CTR)}
+    return JsonResponse(response)
+   
 
