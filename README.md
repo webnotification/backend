@@ -7,8 +7,14 @@
 celery --app=backend.celery:app worker --loglevel=INFO
 ```
 
-##### Run rabbitmq/redis
+##### Run rabbitmq
 ``` bash
 rabbitmq-server
+```
+
+or
+
+##### Run redis
+``` bash
 redis-server
 ```
