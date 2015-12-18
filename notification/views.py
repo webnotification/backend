@@ -4,6 +4,7 @@ from notification.models import User, Group, User_Group, PermissionResponse, Not
 import random
 from django.db.models import Count
 from django.db import IntegrityError
+from tasks import test
 
 def index(request):
     return HttpResponse("Hello, Welcome to our notification homepage.")
@@ -47,11 +48,12 @@ def save_push_key(request):
     return JsonResponse({'success': True})
 
 def send_notification(request):
-    params = request.POST
-    website = params['website']
-    notification_data = params['notification_data']
-    group_id = params['group_id']
+    params = request.GET
+    # website = params['website']
+    # notification_data = params['notification_data']
+    # group_id = params['group_id']
     # Add to queue and send
+    test.delay(params['message'])
     return JsonResponse({'success': True})
 
 def send_permission_response(request):
