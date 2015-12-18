@@ -4,7 +4,7 @@ from notification.models import User, Group, User_Group, PermissionResponse, Not
 import random
 from django.db.models import Count
 from django.db import IntegrityError
-from tasks import test
+from tasks import push_notification
 
 def index(request):
     return HttpResponse("Hello, Welcome to our notification homepage.")
@@ -53,7 +53,7 @@ def send_notification(request):
     # notification_data = params['notification_data']
     # group_id = params['group_id']
     # Add to queue and send
-    test.delay(params['message'])
+    push_notification.delay(params['message'])
     return JsonResponse({'success': True})
 
 def send_permission_response(request):
