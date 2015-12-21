@@ -40,6 +40,13 @@ def generate_group(request):
         user_group.save()
     return JsonResponse({'group_id': group_id})
 
+def get_groups(request):
+    params = request.GET
+    website = params['website']
+    group_objects = Group.objects.filter(website=website)
+    groups = [group.name for group in group_objects]
+    return JsonResponse({'groups': groups})
+
 def save_push_key(request):
     params = request.POST
     website = params['website']
