@@ -3,8 +3,11 @@ from django.http import HttpResponse, JsonResponse
 from notification.models import User, Group, User_Group, PermissionResponse, NotificationResponse
 import random
 from django.db.models import Count
-from django.db import IntegrityError
+from django.db import IntegrityError, DataError
 from tasks import push_notification
+import requests
+import json
+
 
 def index(request):
     return HttpResponse("Hello, Welcome to our notification homepage.")
@@ -40,20 +43,42 @@ def generate_group(request):
 def save_push_key(request):
     params = request.POST
     website = params['website']
-    id = params['user_id']
-    push_key = params['push_key']
+    # id = params['user_id']
+    id = 0
+    push_key = params['subs'][40:]
     user = User.objects.filter(id=id, website=website)[0]
     user.push_key = push_key
-    user.save()
-    return JsonResponse({'success': True})
+    response = ""
+    try:
+        user.save()
+    except DataError as e:
+        response = e.message
+    response = HttpResponse(response)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
+
+def send_to_gcm(user_id):
+    uri = 'https://android.googleapis.com/gcm/send'
+    payload = json.dumps({
+                'registration_ids': [
+                   User.objects.filter(id=user_id)[0].push_key     
+                    ]
+              })
+    headers = {
+              'Content-Type': 'application/json',
+              'Authorization': 'key=AIzaSyDuYIh8i3e63Wyag2XHwDPrFYTPITZvIQY'
+            } 
+    requests.post(uri, data=payload, headers=headers)
 
 def send_notification(request):
-    params = request.GET
+    params = request.POST  # make it POST
     # website = params['website']
-    # notification_data = params['notification_data']
     # group_id = params['group_id']
-    # Add to queue and send
-    push_notification.delay(params['message'])
+    title = params['title']
+    message = params['message']
+    url = params['target_url']
+    send_to_gcm(user_id=0)
+    # push_notification.delay(title, message, url)
     return JsonResponse({'success': True})
 
 def send_permission_response(request):

@@ -3,7 +3,7 @@ from django.db import models
 
 
 class User(models.Model):
-    push_key = models.CharField(max_length=100)
+    push_key = models.CharField(max_length=200)
     website = models.CharField(max_length=50)
 
 class Group(models.Model):
@@ -29,7 +29,6 @@ class NotificationResponse(models.Model):
     action = models.CharField(max_length=10)
     class Meta:
         unique_together = ("user_id", "notification_id")
-
 
 
 
