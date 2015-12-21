@@ -13,7 +13,7 @@ def index(request):
     return HttpResponse("Hello, Welcome to our notification homepage.")
 
 def generate_user_id(request):
-    website = request.GET.get('website', '')
+    website = request.GET.get('website')
     try:
         id = User.objects.latest('id').id + 1
     except User.DoesNotExist:
@@ -52,7 +52,10 @@ def save_push_key(request):
     website = params['website']
     # id = params['user_id']
     id = 0
-    push_key = params['subs'][40:]
+    endpoint = params['subs']
+    if endpoint.startswith('https://android.googleapis.com/gcm/send'):
+        endpointParts = endpoint.split('/')
+        push_key = endpointParts[len(endpointParts) - 1]
     user = User.objects.filter(id=id, website=website)[0]
     user.push_key = push_key
     response = ""
