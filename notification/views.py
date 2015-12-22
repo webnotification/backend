@@ -55,9 +55,9 @@ def get_groups(request):
     return JsonResponse({'groups': groups})
 
 def save_push_key(request):
+
     params = request.POST
     website = params['website']
-    # id = params['user_id']
     id = 0
     endpoint = params['subs']
     if endpoint.startswith('https://android.googleapis.com/gcm/send'):
@@ -65,6 +65,7 @@ def save_push_key(request):
         push_key = endpointParts[len(endpointParts) - 1]
     user = User.objects.filter(id=id, website=website)[0]
     user.push_key = push_key
+    user.uid = str(params['uid'])
     response = ""
     try:
         user.save()
@@ -88,20 +89,8 @@ def send_to_gcm(user_id):
     requests.post(uri, data=payload, headers=headers)
 
 def send_notification(request):
-    params = request.POST  
-    # website = params['website']
-    # group_id = params['group_id']
-    title = params['title']
-    message = params['message']
-    url = params['target_url']
+    params = request.POST  # make it POST
     send_to_gcm(user_id=0)
-    # push_notification.delay(title, message, url)
-    # user_list = User.objects.filter(website=website).values("id")
-    # shuffled_user_list = sorted(user_list, key=lambda x: random.random())
-    # final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
-    # for user in final_user_list:
-        # user_group = User_Group(user_id=user['id'], group_id=group_id)
-        # user_group.save()
     return JsonResponse({'success': True})
 
 def send_permission_response(request):
@@ -144,12 +133,7 @@ def get_permission_CTR(request):
    
 def get_notification_CTR(request):
     params = request.GET
-    # group_id = params['group_id']
     notification_id = params['notification_id']
-    # user_list = User_Group.objects.filter(group_id=group_id).values('user_id')
-    # user_id_list = [user['user_id'] for user in user_list]
-    # notification_CTR = NotificationResponse.objects.filter(user_id__in=user_id_list, notification_id=notification_id).\
-            # values('action').annotate(ct=Count('action'))
     notification_CTR = NotificationResponse.objects.filter(notification_id=notification_id).values('action').annotate(ct=Count('action'))
     response = {'result': list(notification_CTR)}
     return JsonResponse(response)
