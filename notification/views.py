@@ -7,6 +7,7 @@ from django.db import IntegrityError, DataError
 from tasks import push_notification
 import requests
 import json
+from gcm import GCM
 
 
 def index(request):
@@ -41,13 +42,14 @@ def generate_group(request):
     return JsonResponse({'group_id': group_id})
 
 def save_push_key(request):
+
     params = request.POST
     website = params['website']
-    # id = params['user_id']
     id = 0
     push_key = params['subs'][40:]
     user = User.objects.filter(id=id, website=website)[0]
     user.push_key = push_key
+    user.uid = str(params['uid'])
     response = ""
     try:
         user.save()
@@ -72,13 +74,7 @@ def send_to_gcm(user_id):
 
 def send_notification(request):
     params = request.POST  # make it POST
-    # website = params['website']
-    # group_id = params['group_id']
-    title = params['title']
-    message = params['message']
-    url = params['target_url']
     send_to_gcm(user_id=0)
-    # push_notification.delay(title, message, url)
     return JsonResponse({'success': True})
 
 def send_permission_response(request):
