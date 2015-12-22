@@ -57,7 +57,7 @@ def get_groups(request):
 def save_push_key(request):
     params = request.POST
     website = params['website']
-    cookie_id = params['uid']
+    cookie_id = params['cookie_id']
     # id = params['user_id']
     id = 0
     endpoint = params['subs']
