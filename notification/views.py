@@ -1,20 +1,19 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
-from notification.models import User, Group, User_Group, PermissionResponse, NotificationResponse
-import random
+from notification.models import User, Group, PermissionResponse, NotificationResponse
 from django.db.models import Count
 from django.db import IntegrityError, DataError
 from tasks import push_notification
 import requests
 import json
-from gcm import GCM
+import random
 
 
 def index(request):
     return HttpResponse("Hello, Welcome to our notification homepage.")
 
 def generate_user_id(request):
-    website = request.GET.get('website', '')
+    website = request.GET['website']
     try:
         id = User.objects.latest('id').id + 1
     except User.DoesNotExist:
@@ -28,25 +27,42 @@ def generate_group(request):
     website = params['website']
     group_name = params['group_name']
     percentage = int(params['percentage'])
-    
-    group = Group(name=group_name, website=website)
-    group.save()
-    group_id = Group.objects.latest('id').id
+    response = {'success': True}
+    try:
+        group = Group(name=group_name, website=website, percentage=percentage)
+        group.save()
+    except Exception as e:
+        response = {'error': str(e.__class__.__name__)}
+    return JsonResponse(response)
 
-    user_list = User.objects.filter(website=website).values("id")
-    shuffled_user_list = sorted(user_list, key=lambda x: random.random())
-    final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
-    for user in final_user_list:
-        user_group = User_Group(user_id=user['id'], group_id=group_id)
-        user_group.save()
-    return JsonResponse({'group_id': group_id})
+def delete_group(request):
+    params = request.GET
+    website = params['website']
+    group_name = params['group_name']
+    response = {'success': True}
+    try:
+        group = Group.objects.filter(name=group_name, website=website)
+        group.delete()
+    except Exception as e:
+        response = {'error': e.message}
+    return JsonResponse(response)
+
+def get_groups(request):
+    params = request.GET
+    website = params['website']
+    group_objects = Group.objects.filter(website=website)
+    groups = [{'group_name': group.name, 'percentage': group.percentage} for group in group_objects]
+    return JsonResponse({'groups': groups})
 
 def save_push_key(request):
 
     params = request.POST
     website = params['website']
     id = 0
-    push_key = params['subs'][40:]
+    endpoint = params['subs']
+    if endpoint.startswith('https://android.googleapis.com/gcm/send'):
+        endpointParts = endpoint.split('/')
+        push_key = endpointParts[len(endpointParts) - 1]
     user = User.objects.filter(id=id, website=website)[0]
     user.push_key = push_key
     user.uid = str(params['uid'])
@@ -117,12 +133,8 @@ def get_permission_CTR(request):
    
 def get_notification_CTR(request):
     params = request.GET
-    group_id = params['group_id']
     notification_id = params['notification_id']
-    user_list = User_Group.objects.filter(group_id=group_id).values('user_id')
-    user_id_list = [user['user_id'] for user in user_list]
-    notification_CTR = NotificationResponse.objects.filter(user_id__in=user_id_list, notification_id=notification_id).\
-            values('action').annotate(ct=Count('action'))
+    notification_CTR = NotificationResponse.objects.filter(notification_id=notification_id).values('action').annotate(ct=Count('action'))
     response = {'result': list(notification_CTR)}
     return JsonResponse(response)
    
