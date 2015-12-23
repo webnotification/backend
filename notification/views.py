@@ -74,42 +74,44 @@ def save_push_key(request):
     response["Access-Control-Allow-Origin"] = "*"
     return response
 
-def send_to_gcm(user_id):
-    uri = 'https://android.googleapis.com/gcm/send'
-    payload = json.dumps({
-                'registration_ids': [
-                   User.objects.filter(id=user_id)[0].push_key     
-                    ]
-              })
-    headers = {
-              'Content-Type': 'application/json',
-              'Authorization': 'key=AIzaSyDuYIh8i3e63Wyag2XHwDPrFYTPITZvIQY'
-            } 
-    requests.post(uri, data=payload, headers=headers)
+def get_user_list(website, group_name):
+    percentage = Group.objects.filter(name=group_name)[0].percentage
+    user_list = User.objects.filter(website=website).exclude(push_key=u'').values("push_key")   
+    shuffled_user_list = sorted(user_list, key=lambda x: random.random())
+    final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
+    return final_user_list
 
 def send_notification(request):
-    params = request.POST  
-    # website = params['website']
-    # group_id = params['group_id']
+    params = request.GET  
+    website = params['website']
+    group_name= params['group_name']
     title = params['title']
     message = params['message']
     url = params['target_url']
-    send_to_gcm(user_id=0)
-    # push_notification.delay(title, message, url)
-    # user_list = User.objects.filter(website=website).values("id")
-    # shuffled_user_list = sorted(user_list, key=lambda x: random.random())
-    # final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
-    # for user in final_user_list:
-        # user_group = User_Group(user_id=user['id'], group_id=group_id)
-        # user_group.save()
+    user_list = get_user_list(website, group_name)
+    push_notification.delay(user_list, title, message, url)
     return JsonResponse({'success': True})
+
+def send_permission_message(request):
+    params = request.POST
+    website = params['website']
+    group_name = params['group_name']
+    user_list = get_user_list(properties)
+
+    return JsonResponse({'success': True})
+
+def ask_permission(request):
+    params = request.GET
+    id = params['id']
+    return True #False
 
 def send_permission_response(request):
     params = request.GET
     user_id = params['user_id']
+    permission_id = params['permission_id']
     action = params['action']
     try:
-        permissionresponse = PermissionResponse(user_id=user_id, action=action)
+        permissionresponse = PermissionResponse(user_id=user_id, permission_id=permission_id, action=action)
         permissionresponse.save()
         response = {'success': True}
     except IntegrityError:
@@ -135,23 +137,15 @@ def send_notification_response(request):
 
 def get_permission_CTR(request):
     params = request.GET
-    group_id = params['group_id']
-    user_list = User_Group.objects.filter(group_id=group_id).values('user_id')
-    user_id_list = [user['user_id'] for user in user_list]
-    permission_CTR = PermissionResponse.objects.filter(user_id__in=user_id_list).values('action').annotate(ct=Count('action'))
+    permission_id = params['permission_id']
+    permission_CTR = PermissionResponse.objects.filter(permission_id=permission_id).values('action').annotate(count=Count('action'))
     response = {'result': list(permission_CTR)}
     return JsonResponse(response)
    
 def get_notification_CTR(request):
     params = request.GET
-    # group_id = params['group_id']
     notification_id = params['notification_id']
-    # user_list = User_Group.objects.filter(group_id=group_id).values('user_id')
-    # user_id_list = [user['user_id'] for user in user_list]
-    # notification_CTR = NotificationResponse.objects.filter(user_id__in=user_id_list, notification_id=notification_id).\
-            # values('action').annotate(ct=Count('action'))
-    notification_CTR = NotificationResponse.objects.filter(notification_id=notification_id).values('action').annotate(ct=Count('action'))
+    notification_CTR = NotificationResponse.objects.filter(notification_id=notification_id).values('action').annotate(count=Count('action'))
     response = {'result': list(notification_CTR)}
     return JsonResponse(response)
-   
 
