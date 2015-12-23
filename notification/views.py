@@ -102,8 +102,9 @@ def send_permission_message(request):
 
 def ask_permission(request):
     params = request.GET
-    id = params['id']
-    return True #False
+    user_id = params['user_id']
+    return_val = Ask_Permission.objects.filter(user_id=user_id)[0]['ask']
+    return return_val
 
 def send_permission_response(request):
     params = request.GET

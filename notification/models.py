@@ -14,6 +14,10 @@ class Group(models.Model):
 class Permission(models.Model):
     pass
 
+class Ask_Permission(models.Model):
+    user_id = models.IntegerField()
+    ask = models.BooleanField(default=False)
+
 class Notification(models.Model):
     title = models.CharField(max_length=50)
     message = models.CharField(max_length=100)
