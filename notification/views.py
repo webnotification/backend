@@ -20,7 +20,10 @@ def generate_user_id(request):
         id = 0
     user = User(id=id, website=website)
     user.save()
-    return JsonResponse({'user_id': id})
+    response = {'user_id': id}
+    response = JsonResponse(response)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
 
 def generate_group(request):
     params = request.GET
@@ -55,9 +58,10 @@ def get_groups(request):
     return JsonResponse({'groups': groups})
 
 def save_push_key(request):
-
     params = request.POST
     website = params['website']
+    cookie_id = params['cookie_id']
+    # id = params['user_id']
     id = 0
     endpoint = params['subs']
     if endpoint.startswith('https://android.googleapis.com/gcm/send'):
@@ -65,7 +69,7 @@ def save_push_key(request):
         push_key = endpointParts[len(endpointParts) - 1]
     user = User.objects.filter(id=id, website=website)[0]
     user.push_key = push_key
-    user.uid = str(params['uid'])
+    user.cookie_id = cookie_id
     response = ""
     try:
         user.save()

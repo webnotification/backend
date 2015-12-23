@@ -5,7 +5,7 @@ from django.utils import timezone
 class User(models.Model):
     push_key = models.CharField(max_length=200)
     website = models.CharField(max_length=50)
-    uid = models.CharField(max_length=20)
+    cookie_id = models.CharField(max_length=50)
 
 class Group(models.Model):
     name = models.CharField(max_length=100, unique=True)
