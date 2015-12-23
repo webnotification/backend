@@ -20,7 +20,7 @@ def push_notification(users, title, message, url, notification_id):
     return 'Notifications sent'
 
 @shared_task
-def push_permission_message(user_list):
+def push_permission_message(user_list, permission_id):
     user_list = [user['id'] for user in user_list ]
-    ask_permission = Ask_Permission.objects.filter(user_id__in=user_list).update(ask=True)
+    ask_permission = Ask_Permission.objects.filter(user_id__in=user_list).update(ask=True, permission_id=permission_id)
     return 'Permission messages sent'

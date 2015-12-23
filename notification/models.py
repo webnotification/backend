@@ -17,6 +17,7 @@ class Permission(models.Model):
 class Ask_Permission(models.Model):
     user_id = models.IntegerField()
     ask = models.BooleanField(default=False)
+    permission_id = models.IntegerField()
 
 class Notification(models.Model):
     title = models.CharField(max_length=50)

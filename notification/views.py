@@ -59,20 +59,20 @@ def get_groups(request):
 def save_push_key(request):
     params = request.POST
     website = params['website']
-    # id = params['user_id']
-    id = 0
+    user_id = params['user_id']
+    # user_id = 0
     endpoint = params['subs']
     if endpoint.startswith('https://android.googleapis.com/gcm/send'):
         endpointParts = endpoint.split('/')
         push_key = endpointParts[len(endpointParts) - 1]
-    user = User.objects.filter(id=id, website=website)[0]
+    user = User.objects.filter(id=user_id, website=website)[0]
     user.push_key = push_key
-    response = ""
+    response = {'sucess': true}
     try:
         user.save()
     except DataError as e:
-        response = e.message
-    response = HttpResponse(response)
+        response = {'error': e.message}
+    response = JsonResponse(response)
     response["Access-Control-Allow-Origin"] = "*"
     return response
 
@@ -91,7 +91,7 @@ def get_permission_user_list(website, group_name):
     return final_user_list
 
 def send_notification(request):
-    params = request.GET  
+    params = request.POST  
     website = params['website']
     group_name= params['group_name']
     title = params['title']
@@ -117,21 +117,28 @@ def get_notification_data(request):
     return JsonResponse(notification_data)
 
 def send_permission_message(request):
-    params = request.GET
+    params = request.POST
     website = params['website']
     group_name = params['group_name']
+    permission = Permission()
+    permission.save()
+    permission_id = permission.id
     user_list = get_permission_user_list(website, group_name)
-    push_permission_message.delay(user_list) 
+    push_permission_message.delay(user_list, permission_id) 
     return JsonResponse({'success': True})
 
 def ask_permission(request):
     params = request.GET
     user_id = params['user_id']
-    return_val = Ask_Permission.objects.filter(user_id=user_id)[0].ask
-    return JsonResponse({'ask': return_val})
+    ask_permission = Ask_Permission.objects.get(user_id=user_id)
+    permission_data = {
+                'ask': ask_permission.ask,
+                'permission_id': ask_permission.permission_id
+            }
+    return JsonResponse(permission_data)
 
 def send_permission_response(request):
-    params = request.GET
+    params = request.POST
     user_id = params['user_id']
     permission_id = params['permission_id']
     action = params['action']
@@ -146,7 +153,7 @@ def send_permission_response(request):
     return JsonResponse(response)
 
 def send_notification_response(request):
-    params = request.GET
+    params = request.POST
     user_id = params['user_id']
     notification_id = params['notification_id']
     action = params['action']
