@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
-from notification.models import User, Group, Notification, PermissionResponse, NotificationResponse, Ask_Permission, Notification_Queue
+from notification.models import User, Group, Notification, Permission, PermissionResponse, NotificationResponse, Ask_Permission, Notification_Queue
 from django.db.models import Count
 from django.db import IntegrityError, DataError
 from tasks import push_notification, push_permission_message
@@ -59,15 +59,15 @@ def get_groups(request):
 def save_push_key(request):
     params = request.POST
     website = params['website']
-    user_id = params['user_id']
-    # user_id = 0
+    # user_id = params['user_id']
+    user_id = 0
     endpoint = params['subs']
     if endpoint.startswith('https://android.googleapis.com/gcm/send'):
         endpointParts = endpoint.split('/')
         push_key = endpointParts[len(endpointParts) - 1]
     user = User.objects.filter(id=user_id, website=website)[0]
     user.push_key = push_key
-    response = {'sucess': true}
+    response = {'sucess': True}
     try:
         user.save()
     except DataError as e:
@@ -114,6 +114,7 @@ def get_notification_data(request):
                         'message': notification.message,
                         'target_url': notification.target_url
             }
+    Notification_Queue.filter(notification_id=notification_id, user_id=user_id).delete()
     return JsonResponse(notification_data)
 
 def send_permission_message(request):
