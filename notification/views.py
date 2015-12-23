@@ -1,9 +1,9 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
-from notification.models import User, Group, PermissionResponse, NotificationResponse
+from notification.models import User, Group, Notification, Permission, PermissionResponse, NotificationResponse, Ask_Permission, Notification_Queue
 from django.db.models import Count
 from django.db import IntegrityError, DataError
-from tasks import push_notification
+from tasks import push_notification, push_permission_message
 import requests
 import json
 import random
@@ -20,6 +20,8 @@ def generate_user_id(request):
         id = 0
     user = User(id=id, website=website)
     user.save()
+    ask_permission = Ask_Permission(user_id=id, ask=False)
+    ask_permission.save()
     return JsonResponse({'user_id': id})
 
 def generate_group(request):
@@ -57,61 +59,92 @@ def get_groups(request):
 def save_push_key(request):
     params = request.POST
     website = params['website']
-    cookie_id = params['cookie_id']
-    # id = params['user_id']
-    id = 0
+    # user_id = params['user_id']
+    user_id = 0
     endpoint = params['subs']
     if endpoint.startswith('https://android.googleapis.com/gcm/send'):
         endpointParts = endpoint.split('/')
         push_key = endpointParts[len(endpointParts) - 1]
-    user = User.objects.filter(id=id, website=website)[0]
+    user = User.objects.filter(id=user_id, website=website)[0]
     user.push_key = push_key
-    user.cookie_id = cookie_id
-    response = ""
+    response = {'sucess': True}
     try:
         user.save()
     except DataError as e:
-        response = e.message
-    response = HttpResponse(response)
+        response = {'error': e.message}
+    response = JsonResponse(response)
     response["Access-Control-Allow-Origin"] = "*"
     return response
 
-def send_to_gcm(user_id):
-    uri = 'https://android.googleapis.com/gcm/send'
-    payload = json.dumps({
-                'registration_ids': [
-                   User.objects.filter(id=user_id)[0].push_key     
-                    ]
-              })
-    headers = {
-              'Content-Type': 'application/json',
-              'Authorization': 'key=AIzaSyDuYIh8i3e63Wyag2XHwDPrFYTPITZvIQY'
-            } 
-    requests.post(uri, data=payload, headers=headers)
+def get_notification_user_list(website, group_name):
+    percentage = Group.objects.filter(name=group_name)[0].percentage
+    user_list = User.objects.filter(website=website).exclude(push_key=u'').values("id", "push_key")   
+    shuffled_user_list = sorted(user_list, key=lambda x: random.random())
+    final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
+    return final_user_list
+
+def get_permission_user_list(website, group_name):
+    percentage = Group.objects.filter(name=group_name)[0].percentage
+    user_list = User.objects.filter(website=website, push_key=u'').values("id")   
+    shuffled_user_list = sorted(user_list, key=lambda x: random.random())
+    final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
+    return final_user_list
 
 def send_notification(request):
     params = request.POST  
-    # website = params['website']
-    # group_id = params['group_id']
+    website = params['website']
+    group_name= params['group_name']
     title = params['title']
     message = params['message']
-    url = params['target_url']
-    send_to_gcm(user_id=0)
-    # push_notification.delay(title, message, url)
-    # user_list = User.objects.filter(website=website).values("id")
-    # shuffled_user_list = sorted(user_list, key=lambda x: random.random())
-    # final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
-    # for user in final_user_list:
-        # user_group = User_Group(user_id=user['id'], group_id=group_id)
-        # user_group.save()
+    target_url = params['target_url']
+    notification = Notification(title=title, message=message, target_url=target_url)
+    notification.save()
+    notification_id = notification.id
+    user_list = get_notification_user_list(website, group_name)
+    push_notification.delay(user_list, title, message, target_url, notification_id)
     return JsonResponse({'success': True})
 
-def send_permission_response(request):
+def get_notification_data(request):
     params = request.GET
     user_id = params['user_id']
+    notification_id = Notification_Queue.objects.filter(user_id=user_id)[0].notification_id
+    notification = Notification.objects.get(id=notification_id)
+    notification_data = {
+                        'title': notification.title,
+                        'message': notification.message,
+                        'target_url': notification.target_url
+            }
+    Notification_Queue.filter(notification_id=notification_id, user_id=user_id).delete()
+    return JsonResponse(notification_data)
+
+def send_permission_message(request):
+    params = request.POST
+    website = params['website']
+    group_name = params['group_name']
+    permission = Permission()
+    permission.save()
+    permission_id = permission.id
+    user_list = get_permission_user_list(website, group_name)
+    push_permission_message.delay(user_list, permission_id) 
+    return JsonResponse({'success': True})
+
+def ask_permission(request):
+    params = request.GET
+    user_id = params['user_id']
+    ask_permission = Ask_Permission.objects.get(user_id=user_id)
+    permission_data = {
+                'ask': ask_permission.ask,
+                'permission_id': ask_permission.permission_id
+            }
+    return JsonResponse(permission_data)
+
+def send_permission_response(request):
+    params = request.POST
+    user_id = params['user_id']
+    permission_id = params['permission_id']
     action = params['action']
     try:
-        permissionresponse = PermissionResponse(user_id=user_id, action=action)
+        permissionresponse = PermissionResponse(user_id=user_id, permission_id=permission_id, action=action)
         permissionresponse.save()
         response = {'success': True}
     except IntegrityError:
@@ -121,7 +154,7 @@ def send_permission_response(request):
     return JsonResponse(response)
 
 def send_notification_response(request):
-    params = request.GET
+    params = request.POST
     user_id = params['user_id']
     notification_id = params['notification_id']
     action = params['action']
@@ -137,23 +170,15 @@ def send_notification_response(request):
 
 def get_permission_CTR(request):
     params = request.GET
-    group_id = params['group_id']
-    user_list = User_Group.objects.filter(group_id=group_id).values('user_id')
-    user_id_list = [user['user_id'] for user in user_list]
-    permission_CTR = PermissionResponse.objects.filter(user_id__in=user_id_list).values('action').annotate(ct=Count('action'))
+    permission_id = params['permission_id']
+    permission_CTR = PermissionResponse.objects.filter(permission_id=permission_id).values('action').annotate(count=Count('action'))
     response = {'result': list(permission_CTR)}
     return JsonResponse(response)
    
 def get_notification_CTR(request):
     params = request.GET
-    # group_id = params['group_id']
     notification_id = params['notification_id']
-    # user_list = User_Group.objects.filter(group_id=group_id).values('user_id')
-    # user_id_list = [user['user_id'] for user in user_list]
-    # notification_CTR = NotificationResponse.objects.filter(user_id__in=user_id_list, notification_id=notification_id).\
-            # values('action').annotate(ct=Count('action'))
-    notification_CTR = NotificationResponse.objects.filter(notification_id=notification_id).values('action').annotate(ct=Count('action'))
+    notification_CTR = NotificationResponse.objects.filter(notification_id=notification_id).values('action').annotate(count=Count('action'))
     response = {'result': list(notification_CTR)}
     return JsonResponse(response)
-   
 

@@ -5,7 +5,6 @@ from django.utils import timezone
 class User(models.Model):
     push_key = models.CharField(max_length=200)
     website = models.CharField(max_length=50)
-    cookie_id = models.CharField(max_length=50)
 
 class Group(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -14,6 +13,11 @@ class Group(models.Model):
 
 class Permission(models.Model):
     pass
+
+class Ask_Permission(models.Model):
+    user_id = models.IntegerField()
+    ask = models.BooleanField(default=False)
+    permission_id = models.IntegerField(blank=True, null=True)
 
 class Notification(models.Model):
     title = models.CharField(max_length=50)
@@ -42,6 +46,9 @@ class NotificationResponse(models.Model):
     class Meta:
         unique_together = ("user_id", "notification_id")
 
+class Notification_Queue(models.Model):
+    user_id = models.IntegerField()
+    notification_id = models.IntegerField()
 
 
     
