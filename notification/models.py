@@ -45,6 +45,9 @@ class NotificationResponse(models.Model):
     class Meta:
         unique_together = ("user_id", "notification_id")
 
+class Notification_Queue(models.Model):
+    user_id = models.IntegerField()
+    notification_id = models.IntegerField()
 
 
     

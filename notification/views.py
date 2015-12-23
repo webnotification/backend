@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
-from notification.models import User, Group, PermissionResponse, NotificationResponse, Ask_Permission
+from notification.models import User, Group, Notification, PermissionResponse, NotificationResponse, Ask_Permission, Notification_Queue
 from django.db.models import Count
 from django.db import IntegrityError, DataError
 from tasks import push_notification, push_permission_message
@@ -76,9 +76,9 @@ def save_push_key(request):
     response["Access-Control-Allow-Origin"] = "*"
     return response
 
-def get_notificatio_user_list(website, group_name):
+def get_notification_user_list(website, group_name):
     percentage = Group.objects.filter(name=group_name)[0].percentage
-    user_list = User.objects.filter(website=website).exclude(push_key=u'').values("push_key")   
+    user_list = User.objects.filter(website=website).exclude(push_key=u'').values("id", "push_key")   
     shuffled_user_list = sorted(user_list, key=lambda x: random.random())
     final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
     return final_user_list
@@ -96,10 +96,25 @@ def send_notification(request):
     group_name= params['group_name']
     title = params['title']
     message = params['message']
-    url = params['target_url']
+    target_url = params['target_url']
+    notification = Notification(title=title, message=message, target_url=target_url)
+    notification.save()
+    notification_id = notification.id
     user_list = get_notification_user_list(website, group_name)
-    push_notification.delay(user_list, title, message, url)
+    push_notification.delay(user_list, title, message, target_url, notification_id)
     return JsonResponse({'success': True})
+
+def get_notification_data(request):
+    params = request.GET
+    user_id = params['user_id']
+    notification_id = Notification_Queue.objects.filter(user_id=user_id)[0].notification_id
+    notification = Notification.objects.get(id=notification_id)
+    notification_data = {
+                        'title': notification.title,
+                        'message': notification.message,
+                        'target_url': notification.target_url
+            }
+    return JsonResponse(notification_data)
 
 def send_permission_message(request):
     params = request.GET

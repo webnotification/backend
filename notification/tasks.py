@@ -3,13 +3,15 @@ from celery import shared_task
 import requests
 import config
 import json
-from notification.models import Ask_Permission
+from notification.models import Ask_Permission, Notification_Queue
 
 
 @shared_task
-def push_notification(user_registration_keys, title, message, url):
-    for user_registration_key in user_registration_keys:
-        payload = json.dumps({'registration_ids': [user_registration_key['push_key']]})
+def push_notification(users, title, message, url, notification_id):
+    for user in users:
+        notification_queue = Notification_Queue(user_id=user['id'], notification_id=notification_id)
+        notification_queue.save()
+        payload = json.dumps({'registration_ids': [user['push_key']]})
         headers = {
                   'Content-Type': 'application/json',
                   'Authorization': config.GCM_AUTHORIZATION,
