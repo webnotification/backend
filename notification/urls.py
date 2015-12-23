@@ -9,6 +9,7 @@ urlpatterns = [
     url(r'^delete_group$', views.delete_group, name='delete_group'),
     url(r'^save_push_key$', views.save_push_key, name='save_push_key'),
     url(r'^send_notification$', views.send_notification, name='send_notification'),
+    url(r'^send_permission_message$', views.send_permission_message, name='send_permission_message'),
     url(r'^send_permission_response$', views.send_permission_response, name='send_permission_response'),
     url(r'^send_notification_response$', views.send_notification_response, name='send_notification_response'),
     url(r'^get_permission_CTR$', views.get_permission_CTR, name='get_permission_CTR'),

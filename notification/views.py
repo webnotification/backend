@@ -1,9 +1,9 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
-from notification.models import User, Group, PermissionResponse, NotificationResponse
+from notification.models import User, Group, PermissionResponse, NotificationResponse, Ask_Permission
 from django.db.models import Count
 from django.db import IntegrityError, DataError
-from tasks import push_notification
+from tasks import push_notification, push_permission_message
 import requests
 import json
 import random
@@ -20,6 +20,8 @@ def generate_user_id(request):
         id = 0
     user = User(id=id, website=website)
     user.save()
+    ask_permission = Ask_Permission(user_id=id, ask=False)
+    ask_permission.save()
     return JsonResponse({'user_id': id})
 
 def generate_group(request):
@@ -74,9 +76,16 @@ def save_push_key(request):
     response["Access-Control-Allow-Origin"] = "*"
     return response
 
-def get_user_list(website, group_name):
+def get_notificatio_user_list(website, group_name):
     percentage = Group.objects.filter(name=group_name)[0].percentage
     user_list = User.objects.filter(website=website).exclude(push_key=u'').values("push_key")   
+    shuffled_user_list = sorted(user_list, key=lambda x: random.random())
+    final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
+    return final_user_list
+
+def get_permission_user_list(website, group_name):
+    percentage = Group.objects.filter(name=group_name)[0].percentage
+    user_list = User.objects.filter(website=website, push_key=u'').values("id")   
     shuffled_user_list = sorted(user_list, key=lambda x: random.random())
     final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
     return final_user_list
@@ -88,16 +97,16 @@ def send_notification(request):
     title = params['title']
     message = params['message']
     url = params['target_url']
-    user_list = get_user_list(website, group_name)
+    user_list = get_notification_user_list(website, group_name)
     push_notification.delay(user_list, title, message, url)
     return JsonResponse({'success': True})
 
 def send_permission_message(request):
-    params = request.POST
+    params = request.GET
     website = params['website']
     group_name = params['group_name']
-    user_list = get_user_list(properties)
-
+    user_list = get_permission_user_list(website, group_name)
+    push_permission_message.delay(user_list) 
     return JsonResponse({'success': True})
 
 def ask_permission(request):

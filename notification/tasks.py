@@ -3,6 +3,8 @@ from celery import shared_task
 import requests
 import config
 import json
+from notification.models import Ask_Permission
+
 
 @shared_task
 def push_notification(user_registration_keys, title, message, url):
@@ -17,5 +19,6 @@ def push_notification(user_registration_keys, title, message, url):
 
 @shared_task
 def push_permission_message(user_list):
-    
+    user_list = [user['id'] for user in user_list ]
+    ask_permission = Ask_Permission.objects.filter(user_id__in=user_list).update(ask=True)
     return 'Permission messages sent'
