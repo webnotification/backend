@@ -15,7 +15,7 @@ class Permission(models.Model):
     pass
 
 class Ask_Permission(models.Model):
-    user_id = models.IntegerField()
+    user_id = models.IntegerField(unique=True)
     ask = models.BooleanField(default=False)
     permission_id = models.IntegerField(blank=True, null=True)
 
