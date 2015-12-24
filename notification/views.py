@@ -22,7 +22,10 @@ def generate_user_id(request):
     user.save()
     ask_permission = Ask_Permission(user_id=id, ask=False)
     ask_permission.save()
-    return JsonResponse({'user_id': id})
+    response = {'user_id': id}
+    response = JsonResponse(response)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
 
 def generate_group(request):
     params = request.GET
@@ -91,6 +94,8 @@ def get_permission_user_list(website, group_name):
     return final_user_list
 
 def send_notification(request):
+    # import  ipdb
+    # ipdb.set_trace()
     params = request.POST  
     website = params['website']
     group_name= params['group_name']
@@ -114,8 +119,10 @@ def get_notification_data(request):
                         'message': notification.message,
                         'target_url': notification.target_url
             }
-    Notification_Queue.filter(notification_id=notification_id, user_id=user_id).delete()
-    return JsonResponse(notification_data)
+    Notification_Queue.objects.filter(notification_id=notification_id, user_id=user_id).delete()
+    response = JsonResponse(notification_data)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
 
 def send_permission_message(request):
     params = request.POST
@@ -136,8 +143,10 @@ def ask_permission(request):
                 'ask': ask_permission.ask,
                 'permission_id': ask_permission.permission_id
             }
-    return JsonResponse(permission_data)
-
+    response  = JsonResponse(permission_data)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
+    
 def send_permission_response(request):
     params = request.POST
     user_id = params['user_id']
