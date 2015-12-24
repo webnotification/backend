@@ -62,8 +62,7 @@ def get_groups(request):
 def save_push_key(request):
     params = request.POST
     website = params['website']
-    # user_id = params['user_id']
-    user_id = 0
+    user_id = params['user_id']
     endpoint = params['subs']
     if endpoint.startswith('https://android.googleapis.com/gcm/send'):
         endpointParts = endpoint.split('/')
