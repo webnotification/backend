@@ -209,6 +209,5 @@ def get_notification_analytics(request):
                 })
     data_list = data.values()
     response = JsonResponse({'notifications': data_list})
-    response["Access-Control-Allow-Origin"] = "*"
     return response
 
