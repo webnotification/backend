@@ -12,6 +12,7 @@ urlpatterns = [
     url(r'^send_permission_message$', views.send_permission_message, name='send_permission_message'),
     url(r'^send_permission_response$', views.send_permission_response, name='send_permission_response'),
     url(r'^send_notification_response$', views.send_notification_response, name='send_notification_response'),
+    url(r'^get_notification_analytics$', views.get_notification_analytics, name='get_notification_analytics'),
     url(r'^get_permission_CTR$', views.get_permission_CTR, name='get_permission_CTR'),
     url(r'^get_notification_CTR$', views.get_notification_CTR, name='get_notification_CTR'),
     url(r'^get_notification_data$', views.get_notification_data, name='get_notification_data'),

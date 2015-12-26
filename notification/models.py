@@ -23,6 +23,8 @@ class Notification(models.Model):
     title = models.CharField(max_length=50)
     message = models.CharField(max_length=100)
     target_url = models.CharField(max_length=50)
+    website = models.CharField(max_length=50)
+    timestamp = models.DateTimeField(default=timezone.now) 
 
 class Permission_Group(models.Model):
     permission_id = models.IntegerField()
@@ -39,12 +41,12 @@ class PermissionResponse(models.Model):
     timestamp = models.DateTimeField(default=timezone.now) 
 
 class NotificationResponse(models.Model):
+    notification = models.ForeignKey('Notification', on_delete=models.CASCADE)
     user_id = models.IntegerField()
-    notification_id = models.IntegerField()
     action = models.CharField(max_length=10)
     timestamp = models.DateTimeField(default=timezone.now) 
     class Meta:
-        unique_together = ("user_id", "notification_id")
+        unique_together = ("user_id", "notification")
 
 class Notification_Queue(models.Model):
     user_id = models.IntegerField()

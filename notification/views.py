@@ -7,6 +7,7 @@ from tasks import push_notification, push_permission_message
 import requests
 import json
 import random
+from collections import defaultdict
 
 
 def index(request):
@@ -101,7 +102,7 @@ def send_notification(request):
     title = params['title']
     message = params['message']
     target_url = params['target_url']
-    notification = Notification(title=title, message=message, target_url=target_url)
+    notification = Notification(title=title, message=message, target_url=target_url, website=website)
     notification.save()
     notification_id = notification.id
     user_list = get_notification_user_list(website, group_name)
@@ -189,4 +190,25 @@ def get_notification_CTR(request):
     notification_CTR = NotificationResponse.objects.filter(notification_id=notification_id).values('action').annotate(count=Count('action'))
     response = {'result': list(notification_CTR)}
     return JsonResponse(response)
+
+def get_notification_analytics(request):
+    params = request.GET
+    website = params['website']
+    notifications = Notification.objects.filter(website=website).values('id', 'title', 'message', 'target_url', 'timestamp', 'notificationresponse__action').annotate(Count('notificationresponse__action'))
+    data = defaultdict(dict)
+    for notification in notifications:
+        data[notification['id']].update({
+                        'message': notification['message'],
+                        'title': notification['title'],
+                        'target_url': notification['target_url'],
+                        'timestamp': notification['timestamp'],
+                        'accept': data[notification['id']].get('accept', 0),
+                        'reject': data[notification['id']].get('reject', 0),
+                        'None': data[notification['id']].get('None', 0),
+                        str(notification['notificationresponse__action']): notification['notificationresponse__action__count'] 
+                })
+    data_list = data.values()
+    response = JsonResponse({'notifications': data_list})
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
 
