@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     url(r'^$', views.index, name='index'),
+    url(r'^generate_client$', views.generate_client, name='generate_client'),
     url(r'^generate_user_id$', views.generate_user_id, name='generate_user_id'),
     url(r'^generate_group$', views.generate_group, name='generate_group'),
     url(r'^delete_group$', views.delete_group, name='delete_group'),
@@ -13,6 +14,7 @@ urlpatterns = [
     url(r'^send_permission_response$', views.send_permission_response, name='send_permission_response'),
     url(r'^send_notification_response$', views.send_notification_response, name='send_notification_response'),
     url(r'^get_notification_analytics$', views.get_notification_analytics, name='get_notification_analytics'),
+    url(r'^get_permission_analytics$', views.get_permission_analytics, name='get_permission_analytics'),
     url(r'^get_permission_CTR$', views.get_permission_CTR, name='get_permission_CTR'),
     url(r'^get_notification_CTR$', views.get_notification_CTR, name='get_notification_CTR'),
     url(r'^get_notification_data$', views.get_notification_data, name='get_notification_data'),

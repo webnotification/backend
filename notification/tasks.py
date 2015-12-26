@@ -3,14 +3,15 @@ from celery import shared_task
 import requests
 import config
 import json
-from notification.models import Ask_Permission, Notification_Queue
+from notification.models import Ask_Permission, Notification_Queue, NotificationResponse
 
 
 @shared_task
 def push_notification(users, title, message, url, notification_id):
+    record_list = [Notification_Queue(user_id=user['id'], notification_id=notification_id) for user in users]
+    Notification_Queue.objects.bulk_create(record_list)
+    NotificationResponse.objects.filter(notification_id=notification_id).update(action='reject')
     for user in users:
-        notification_queue = Notification_Queue(user_id=user['id'], notification_id=notification_id)
-        notification_queue.save()
         payload = json.dumps({'registration_ids': [user['push_key']]})
         headers = {
                   'Content-Type': 'application/json',

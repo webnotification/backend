@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
-from notification.models import User, Group, Notification, Permission, PermissionResponse, NotificationResponse, Ask_Permission, Notification_Queue
+from notification.models import Client, User, Group, Notification, Permission, PermissionResponse, NotificationResponse, Ask_Permission, Notification_Queue
 from django.db.models import Count
 from django.db import IntegrityError, DataError
 from tasks import push_notification, push_permission_message
@@ -10,8 +10,22 @@ import random
 from collections import defaultdict
 
 
+def get_client_id(website):
+    return Client.objects.filter(website=website)[0].id
+
 def index(request):
-    return HttpResponse("Hello, Welcome to our notification homepage.")
+    return HttpResponse("Yup, Server is running.")
+
+def generate_client(request):
+    params = request.GET
+    website = params['website']
+    try:
+        client = Client(website=website)
+        client.save()
+        response = {'success': True}
+    except Exception as e:
+        response = {'error': e}
+    return JsonResponse(response)
 
 def generate_user_id(request):
     website = request.GET['website']
@@ -19,7 +33,8 @@ def generate_user_id(request):
         id = User.objects.latest('id').id + 1
     except User.DoesNotExist:
         id = 0
-    user = User(id=id, website=website)
+    client_id = get_client_id(website)
+    user = User(id=id, client_id=client_id)
     user.save()
     ask_permission = Ask_Permission(user_id=id, ask=False)
     ask_permission.save()
@@ -35,7 +50,8 @@ def generate_group(request):
     percentage = int(params['percentage'])
     response = {'success': True}
     try:
-        group = Group(name=group_name, website=website, percentage=percentage)
+        client_id = get_client_id(website)
+        group = Group(name=group_name, client_id=client_id, percentage=percentage)
         group.save()
     except Exception as e:
         response = {'error': str(e.__class__.__name__)}
@@ -47,7 +63,8 @@ def delete_group(request):
     group_name = params['group_name']
     response = {'success': True}
     try:
-        group = Group.objects.filter(name=group_name, website=website)
+        client_id = get_client_id(website)
+        group = Group.objects.filter(name=group_name, client_id=client_id)
         group.delete()
     except Exception as e:
         response = {'error': e.message}
@@ -56,7 +73,8 @@ def delete_group(request):
 def get_groups(request):
     params = request.GET
     website = params['website']
-    group_objects = Group.objects.filter(website=website)
+    client_id = get_client_id(website)
+    group_objects = Group.objects.filter(client_id=client_id)
     groups = [{'group_name': group.name, 'percentage': group.percentage} for group in group_objects]
     return JsonResponse({'groups': groups})
 
@@ -65,10 +83,11 @@ def save_push_key(request):
     website = params['website']
     user_id = params['user_id']
     endpoint = params['subs']
+    client_id = get_client_id(website)
     if endpoint.startswith('https://android.googleapis.com/gcm/send'):
         endpointParts = endpoint.split('/')
         push_key = endpointParts[len(endpointParts) - 1]
-    user = User.objects.filter(id=user_id, website=website)[0]
+    user = User.objects.filter(id=user_id, client_id=client_id)[0]
     user.push_key = push_key
     response = {'sucess': True}
     try:
@@ -79,59 +98,67 @@ def save_push_key(request):
     response["Access-Control-Allow-Origin"] = "*"
     return response
 
-def get_notification_user_list(website, group_name):
+def get_notification_user_list(client_id, group_name):
     percentage = Group.objects.filter(name=group_name)[0].percentage
-    user_list = User.objects.filter(website=website).exclude(push_key=u'').values("id", "push_key")   
-    shuffled_user_list = sorted(user_list, key=lambda x: random.random())
-    final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
-    return final_user_list
-
-def get_permission_user_list(website, group_name):
-    percentage = Group.objects.filter(name=group_name)[0].percentage
-    user_list = User.objects.filter(website=website, push_key=u'').values("id")   
+    user_list = User.objects.filter(client_id=client_id).exclude(push_key=u'').values("id", "push_key")   
     shuffled_user_list = sorted(user_list, key=lambda x: random.random())
     final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
     return final_user_list
 
 def send_notification(request):
-    # import  ipdb
-    # ipdb.set_trace()
     params = request.POST  
     website = params['website']
     group_name= params['group_name']
     title = params['title']
     message = params['message']
     target_url = params['target_url']
-    notification = Notification(title=title, message=message, target_url=target_url, website=website)
+    client_id = get_client_id(website)
+    group_id = Group.objects.filter(name=group_name)[0].id
+    notification = Notification(title=title, message=message, target_url=target_url, client_id=client_id, group_id=group_id)
     notification.save()
     notification_id = notification.id
-    user_list = get_notification_user_list(website, group_name)
+    user_list = get_notification_user_list(client_id, group_name)
+    record_list = [NotificationResponse(user_id=user['id'], notification_id=notification_id) for user in user_list]
+    NotificationResponse.objects.bulk_create(record_list)
     push_notification.delay(user_list, title, message, target_url, notification_id)
     return JsonResponse({'success': True})
 
 def get_notification_data(request):
     params = request.GET
     user_id = params['user_id']
-    notification_id = Notification_Queue.objects.filter(user_id=user_id)[0].notification_id
-    notification = Notification.objects.get(id=notification_id)
-    notification_data = {
-                        'title': notification.title,
-                        'message': notification.message,
-                        'target_url': notification.target_url
-            }
-    Notification_Queue.objects.filter(notification_id=notification_id, user_id=user_id).delete()
-    response = JsonResponse(notification_data)
+    try:
+        notification_id = Notification_Queue.objects.filter(user_id=user_id)[0].notification_id
+        notification = Notification.objects.get(id=notification_id)
+        notification_data = {
+                            'notification_id': notification_id,
+                            'title': notification.title,
+                            'message': notification.message,
+                            'target_url': notification.target_url
+                }
+        Notification_Queue.objects.filter(notification_id=notification_id, user_id=user_id).delete()
+        response = JsonResponse(notification_data)
+    except IndexError:
+        response = JsonResponse({'error': 'No message in queue'})
     response["Access-Control-Allow-Origin"] = "*"
     return response
+
+def get_permission_user_list(client_id, group_name):
+    percentage = Group.objects.filter(name=group_name)[0].percentage
+    user_list = User.objects.filter(client_id=client_id, push_key=u'').values("id")   
+    shuffled_user_list = sorted(user_list, key=lambda x: random.random())
+    final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
+    return final_user_list
 
 def send_permission_message(request):
     params = request.POST
     website = params['website']
     group_name = params['group_name']
-    permission = Permission()
+    group_id = Group.objects.filter(name=group_name)[0].id
+    client_id = get_client_id(website)
+    permission = Permission(client_id=client_id, group_id=group_id)
     permission.save()
     permission_id = permission.id
-    user_list = get_permission_user_list(website, group_name)
+    user_list = get_permission_user_list(client_id, group_name)
     push_permission_message.delay(user_list, permission_id) 
     return JsonResponse({'success': True})
 
@@ -160,22 +187,25 @@ def send_permission_response(request):
         response = {'error': 'Permission already set'}
     except Exception as e:
         response = {'error': e}
-    return JsonResponse(response)
+    response = JsonResponse(response)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
 
 def send_notification_response(request):
-    params = request.POST
+    params = request.GET
     user_id = params['user_id']
     notification_id = params['notification_id']
     action = params['action']
     try:
-        notificationresponse = NotificationResponse(user_id=user_id, notification_id=notification_id, action=action)
+        notificationresponse = NotificationResponse.objects.filter(user_id=user_id, notification_id=notification_id)[0]
+        notificationresponse.action = action
         notificationresponse.save()
         response = {'success': True}
-    except IntegrityError:
-        response = {'error': 'Notification Status already set'}
     except Exception as e:
         response = {'error': e.message}
-    return JsonResponse(response)
+    response = JsonResponse(response)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
 
 def get_permission_CTR(request):
     params = request.GET
@@ -191,10 +221,30 @@ def get_notification_CTR(request):
     response = {'result': list(notification_CTR)}
     return JsonResponse(response)
 
+def get_permission_analytics(request):
+    params = request.GET
+    website = params['website']
+    client_id = get_client_id(website)
+    permissions = Permission.objects.filter(client_id=client_id).values('id', 'timestamp', 'group__name', 'permissionresponse__action').annotate(Count('permissionresponse__action'))
+    data = defaultdict(dict)
+    for permission in permissions:
+        data[permission['id']].update({
+                        'timestamp': permission['timestamp'],
+                        'group': permission['group__name'],
+                        'accept': data[permission['id']].get('accept', 0),
+                        'reject': data[permission['id']].get('reject', 0),
+                        'None': data[permission['id']].get('None', 0),
+                        str(permission['permissionresponse__action']): permission['permissionresponse__action__count'] 
+                })
+    data_list = data.values()
+    response = JsonResponse({'permissions': data_list})
+    return response
+
 def get_notification_analytics(request):
     params = request.GET
     website = params['website']
-    notifications = Notification.objects.filter(website=website).values('id', 'title', 'message', 'target_url', 'timestamp', 'notificationresponse__action').annotate(Count('notificationresponse__action'))
+    client_id = get_client_id(website)
+    notifications = Notification.objects.filter(client_id=client_id).values('id', 'title', 'message', 'target_url', 'timestamp', 'group__name', 'notificationresponse__action').annotate(Count('notificationresponse__action'))
     data = defaultdict(dict)
     for notification in notifications:
         data[notification['id']].update({
@@ -202,6 +252,7 @@ def get_notification_analytics(request):
                         'title': notification['title'],
                         'target_url': notification['target_url'],
                         'timestamp': notification['timestamp'],
+                        'group': notification['group__name'],
                         'accept': data[notification['id']].get('accept', 0),
                         'reject': data[notification['id']].get('reject', 0),
                         'None': data[notification['id']].get('None', 0),
