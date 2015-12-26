@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
-from notification.models import Client, User, Group, Notification, Permission, PermissionResponse, NotificationResponse, Ask_Permission, Notification_Queue
+from notification.models import Client, User, Group, Notification, Permission, \
+        PermissionResponse, NotificationResponse, Ask_Permission, Notification_Queue
 from django.db.models import Count
 from django.db import IntegrityError, DataError
 from tasks import push_notification, push_permission_message
