@@ -4,7 +4,7 @@ from django.utils import timezone
 
 class Client(models.Model):
     id = models.CharField(max_length=50, primary_key=True)
-    website = models.CharField(max_length=50)
+    website = models.CharField(max_length=50, unique=True)
 
 class User(models.Model):
     push_key = models.CharField(max_length=200)

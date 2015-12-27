@@ -11,9 +11,6 @@ import random
 from collections import defaultdict
 
 
-def get_client_id(website):
-    return Client.objects.filter(website=website)[0].id
-
 def index(request):
     return HttpResponse("Yup, Server is running.")
 
@@ -35,7 +32,7 @@ def generate_user_id(request):
         id = User.objects.latest('id').id + 1
     except User.DoesNotExist:
         id = 0
-    client_id = get_client_id(website)
+    client_id = Client.objects.filter(website=website)[0].id
     user = User(id=id, client_id=client_id)
     user.save()
     ask_permission = Ask_Permission(user_id=id, ask=False)
@@ -73,20 +70,19 @@ def delete_group(request):
 def get_groups(request):
     params = request.GET
     client_id = params['client_id']
-    group_objects = Group.objects.filter(client_id=client_id)
-    groups = [{'group_name': group.name, 'percentage': group.percentage} for group in group_objects]
-    return JsonResponse({'groups': groups})
+    groups = Group.objects.filter(client_id=client_id).values('id', 'name', 'percentage')
+    response = {'groups': list(groups)}
+    return JsonResponse(response)
 
 def save_push_key(request):
     params = request.POST
     website = params['website']
     user_id = params['user_id']
     endpoint = params['subs']
-    client_id = get_client_id(website)
     if endpoint.startswith('https://android.googleapis.com/gcm/send'):
         endpointParts = endpoint.split('/')
         push_key = endpointParts[len(endpointParts) - 1]
-    user = User.objects.filter(id=user_id, client_id=client_id)[0]
+    user = User.objects.filter(id=user_id)[0]
     user.push_key = push_key
     response = {'sucess': True}
     try:
@@ -97,8 +93,8 @@ def save_push_key(request):
     response["Access-Control-Allow-Origin"] = "*"
     return response
 
-def get_notification_user_list(client_id, group_name):
-    percentage = Group.objects.filter(name=group_name)[0].percentage
+def get_notification_user_list(client_id, group_id):
+    percentage = Group.objects.filter(id=group_id)[0].percentage
     user_list = User.objects.filter(client_id=client_id).exclude(push_key=u'').values("id", "push_key")   
     shuffled_user_list = sorted(user_list, key=lambda x: random.random())
     final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
@@ -106,16 +102,15 @@ def get_notification_user_list(client_id, group_name):
 
 def send_notification(request):
     params = request.POST  
-    group_name= params['group_name']
+    client_id = params['client_id']
+    group_id = params['group_id']
     title = params['title']
     message = params['message']
     target_url = params['target_url']
-    client_id = params['client_id']
-    group_id = Group.objects.filter(name=group_name)[0].id
     notification = Notification(title=title, message=message, target_url=target_url, client_id=client_id, group_id=group_id)
     notification.save()
     notification_id = notification.id
-    user_list = get_notification_user_list(client_id, group_name)
+    user_list = get_notification_user_list(client_id, group_id)
     record_list = [NotificationResponse(user_id=user['id'], notification_id=notification_id) for user in user_list]
     NotificationResponse.objects.bulk_create(record_list)
     push_notification.delay(user_list, title, message, target_url, notification_id)
@@ -140,8 +135,8 @@ def get_notification_data(request):
     response["Access-Control-Allow-Origin"] = "*"
     return response
 
-def get_permission_user_list(client_id, group_name):
-    percentage = Group.objects.filter(name=group_name)[0].percentage
+def get_permission_user_list(client_id, group_id):
+    percentage = Group.objects.filter(id=group_id)[0].percentage
     user_list = User.objects.filter(client_id=client_id, push_key=u'').values("id")   
     shuffled_user_list = sorted(user_list, key=lambda x: random.random())
     final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
@@ -149,13 +144,12 @@ def get_permission_user_list(client_id, group_name):
 
 def send_permission_message(request):
     params = request.POST
-    group_name = params['group_name']
+    group_id = params['group_id']
     client_id = params['client_id']
-    group_id = Group.objects.filter(name=group_name)[0].id
     permission = Permission(client_id=client_id, group_id=group_id)
     permission.save()
     permission_id = permission.id
-    user_list = get_permission_user_list(client_id, group_name)
+    user_list = get_permission_user_list(client_id, group_id)
     push_permission_message.delay(user_list, permission_id) 
     return JsonResponse({'success': True})
 
