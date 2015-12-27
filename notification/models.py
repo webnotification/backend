@@ -14,6 +14,8 @@ class Group(models.Model):
     name = models.CharField(max_length=100)
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
     percentage = models.IntegerField(default=100)
+    class Meta:
+        unique_together = ('name', 'client')
 
 class Permission(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
