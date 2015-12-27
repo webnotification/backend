@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 class Client(models.Model):
+    id = models.CharField(max_length=50, primary_key=True)
     website = models.CharField(max_length=50)
 
 class User(models.Model):
@@ -10,7 +11,7 @@ class User(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
 
 class Group(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
     percentage = models.IntegerField(default=100)
 

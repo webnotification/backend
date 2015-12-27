@@ -17,11 +17,12 @@ def get_client_id(website):
 def index(request):
     return HttpResponse("Yup, Server is running.")
 
-def generate_client(request):
+def save_client(request):
     params = request.GET
+    client_id = params['client_id']
     website = params['website']
     try:
-        client = Client(website=website)
+        client = Client(id=client_id, website=website)
         client.save()
         response = {'success': True}
     except Exception as e:
@@ -46,12 +47,11 @@ def generate_user_id(request):
 
 def generate_group(request):
     params = request.GET
-    website = params['website']
     group_name = params['group_name']
     percentage = int(params['percentage'])
+    client_id = params['client_id']
     response = {'success': True}
     try:
-        client_id = get_client_id(website)
         group = Group(name=group_name, client_id=client_id, percentage=percentage)
         group.save()
     except Exception as e:
@@ -60,11 +60,10 @@ def generate_group(request):
 
 def delete_group(request):
     params = request.GET
-    website = params['website']
+    client_id = params['client_id']
     group_name = params['group_name']
     response = {'success': True}
     try:
-        client_id = get_client_id(website)
         group = Group.objects.filter(name=group_name, client_id=client_id)
         group.delete()
     except Exception as e:
@@ -73,8 +72,7 @@ def delete_group(request):
 
 def get_groups(request):
     params = request.GET
-    website = params['website']
-    client_id = get_client_id(website)
+    client_id = params['client_id']
     group_objects = Group.objects.filter(client_id=client_id)
     groups = [{'group_name': group.name, 'percentage': group.percentage} for group in group_objects]
     return JsonResponse({'groups': groups})
@@ -108,12 +106,11 @@ def get_notification_user_list(client_id, group_name):
 
 def send_notification(request):
     params = request.POST  
-    website = params['website']
     group_name= params['group_name']
     title = params['title']
     message = params['message']
     target_url = params['target_url']
-    client_id = get_client_id(website)
+    client_id = params['client_id']
     group_id = Group.objects.filter(name=group_name)[0].id
     notification = Notification(title=title, message=message, target_url=target_url, client_id=client_id, group_id=group_id)
     notification.save()
@@ -152,10 +149,9 @@ def get_permission_user_list(client_id, group_name):
 
 def send_permission_message(request):
     params = request.POST
-    website = params['website']
     group_name = params['group_name']
+    client_id = params['client_id']
     group_id = Group.objects.filter(name=group_name)[0].id
-    client_id = get_client_id(website)
     permission = Permission(client_id=client_id, group_id=group_id)
     permission.save()
     permission_id = permission.id
@@ -224,8 +220,7 @@ def get_notification_CTR(request):
 
 def get_permission_analytics(request):
     params = request.GET
-    website = params['website']
-    client_id = get_client_id(website)
+    client_id = params['client_id']
     permissions = Permission.objects.filter(client_id=client_id).values('id', 'timestamp', 'group__name', 'permissionresponse__action').annotate(Count('permissionresponse__action'))
     data = defaultdict(dict)
     for permission in permissions:
@@ -243,8 +238,7 @@ def get_permission_analytics(request):
 
 def get_notification_analytics(request):
     params = request.GET
-    website = params['website']
-    client_id = get_client_id(website)
+    client_id = params['client_id']
     notifications = Notification.objects.filter(client_id=client_id).values('id', 'title', 'message', 'target_url', 'timestamp', 'group__name', 'notificationresponse__action').annotate(Count('notificationresponse__action'))
     data = defaultdict(dict)
     for notification in notifications:
