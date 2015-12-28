@@ -87,6 +87,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'notifications',
+        'USER': 'ravi',
+        'PASSWORD': 'ravi'
     }
 }
 
