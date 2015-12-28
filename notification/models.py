@@ -2,53 +2,54 @@ from __future__ import unicode_literals
 from django.db import models
 from django.utils import timezone
 
+class Client(models.Model):
+    id = models.CharField(max_length=50, primary_key=True)
+    website = models.CharField(max_length=50, unique=True)
+
 class User(models.Model):
     push_key = models.CharField(max_length=200)
-    website = models.CharField(max_length=50)
+    client = models.ForeignKey(Client, on_delete=models.CASCADE)
 
 class Group(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    website = models.CharField(max_length=50)
+    name = models.CharField(max_length=100)
+    client = models.ForeignKey(Client, on_delete=models.CASCADE)
     percentage = models.IntegerField(default=100)
+    class Meta:
+        unique_together = ('name', 'client')
 
 class Permission(models.Model):
-    pass
+    client = models.ForeignKey(Client, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(default=timezone.now) 
+    group = models.ForeignKey(Group, on_delete=models.CASCADE)
 
 class Ask_Permission(models.Model):
-    user_id = models.IntegerField(unique=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     ask = models.BooleanField(default=False)
-    permission_id = models.IntegerField(blank=True, null=True)
+    permission = models.ForeignKey(Permission, on_delete=models.CASCADE, blank=True, null=True)   
 
 class Notification(models.Model):
     title = models.CharField(max_length=50)
     message = models.CharField(max_length=100)
     target_url = models.CharField(max_length=50)
-
-class Permission_Group(models.Model):
-    permission_id = models.IntegerField()
-    group_id = models.IntegerField()
-
-class Notification_Group(models.Model):
-    notification_id = models.IntegerField()
-    group_id = models.IntegerField()
+    client = models.ForeignKey(Client, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(default=timezone.now) 
+    group = models.ForeignKey(Group, on_delete=models.CASCADE)
 
 class PermissionResponse(models.Model):
-    user_id = models.IntegerField(unique=True)
-    permission_id = models.IntegerField()
+    permission = models.ForeignKey(Permission, on_delete=models.CASCADE) 
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     action = models.CharField(max_length=10)
     timestamp = models.DateTimeField(default=timezone.now) 
 
 class NotificationResponse(models.Model):
-    user_id = models.IntegerField()
-    notification_id = models.IntegerField()
-    action = models.CharField(max_length=10)
+    notification = models.ForeignKey(Notification, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    action = models.CharField(max_length=10, default='not sent')
     timestamp = models.DateTimeField(default=timezone.now) 
-    class Meta:
-        unique_together = ("user_id", "notification_id")
 
 class Notification_Queue(models.Model):
-    user_id = models.IntegerField()
-    notification_id = models.IntegerField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    notification = models.ForeignKey(Notification, on_delete=models.CASCADE)
 
 
     
