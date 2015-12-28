@@ -14,6 +14,11 @@ from collections import defaultdict
 def index(request):
     return HttpResponse("Yup, Server is running.")
 
+def create_default_groups(client_id):
+    percentages = [10, 25, 50, 100]
+    record_list = [Group(name=str(percentage)+'% users', percentage=percentage , client_id=client_id) for percentage in percentages]
+    Group.objects.bulk_create(record_list)
+
 def save_client(request):
     params = request.GET
     client_id = params['client_id']
@@ -21,6 +26,7 @@ def save_client(request):
     try:
         client = Client(id=client_id, website=website)
         client.save()
+        create_default_groups(client.id)
         response = {'success': True}
     except Exception as e:
         response = {'error': e}
