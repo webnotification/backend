@@ -10,7 +10,6 @@ from notification.models import Ask_Permission, Notification_Queue, Notification
 def push_notification(users, title, message, url, notification_id):
     record_list = [Notification_Queue(user_id=user['id'], notification_id=notification_id) for user in users]
     Notification_Queue.objects.bulk_create(record_list)
-    NotificationResponse.objects.filter(notification_id=notification_id).update(action='reject')
     for user in users:
         payload = json.dumps({'registration_ids': [user['push_key']]})
         headers = {
