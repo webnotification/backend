@@ -8,6 +8,7 @@ from tasks import push_notification, push_permission_message
 import requests
 import json
 import random
+import config
 from collections import defaultdict
 
 
@@ -128,11 +129,13 @@ def get_notification_data(request):
     try:
         notification_id = Notification_Queue.objects.filter(user_id=user_id)[0].notification_id
         notification = Notification.objects.get(id=notification_id)
+        client_id = User.objects.get(id=user_id).client_id
         notification_data = {
                             'notification_id': notification_id,
                             'title': notification.title,
                             'message': notification.message,
-                            'target_url': notification.target_url
+                            'target_url': notification.target_url,
+                            'image': config.NOTIFICATION_IMAGE_BASE_PATH + client_id
                 }
         Notification_Queue.objects.filter(notification_id=notification_id, user_id=user_id).delete()
         response = JsonResponse(notification_data)
