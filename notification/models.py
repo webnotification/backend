@@ -29,7 +29,7 @@ class Ask_Permission(models.Model):
 
 class Notification(models.Model):
     title = models.CharField(max_length=50)
-    message = models.CharField(max_length=100)
+    message = models.CharField(max_length=200)
     target_url = models.CharField(max_length=50)
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(default=timezone.now) 
