@@ -17,6 +17,7 @@ def push_notification(users, title, message, url, notification_id):
                   'Authorization': config.GCM_AUTHORIZATION,
                 } 
         requests.post(config.GCM_URL, data=payload, headers=headers)
+        delete_notification.apply_async(args=(user['id'], notification_id), countdown = config.NOTIFICATION_TIMEOUT)
     return 'Notifications sent'
 
 @shared_task
@@ -24,3 +25,7 @@ def push_permission_message(user_list, permission_id):
     user_list = [user['id'] for user in user_list ]
     ask_permission = Ask_Permission.objects.filter(user_id__in=user_list).update(ask=True, permission_id=permission_id)
     return 'Permission messages sent'
+
+@shared_task
+def delete_notification(user_id, notification_id):
+    Notification_Queue.objects.filter(notification_id=notification_id, user_id=user_id).delete()
