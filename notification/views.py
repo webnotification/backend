@@ -10,6 +10,8 @@ import json
 import random
 import config
 from collections import defaultdict
+from datetime import datetime
+from dateutil import parser
 
 
 def index(request):
@@ -114,13 +116,20 @@ def send_notification(request):
     title = params['title']
     message = params['message']
     target_url = params['target_url']
+    notification_date = params['date']
+    notification_time = params['time']
     notification = Notification(title=title, message=message, target_url=target_url, client_id=client_id, group_id=group_id)
     notification.save()
     notification_id = notification.id
     user_list = get_notification_user_list(client_id, group_id)
     record_list = [NotificationResponse(user_id=user['id'], notification_id=notification_id) for user in user_list]
     NotificationResponse.objects.bulk_create(record_list)
-    push_notification.delay(user_list, title, message, target_url, notification_id)
+    if notification_date!='' and notification_time!='':
+        notification_eta =  notification_date+' '+notification_time+'+5:30'
+        datetime_object = parser.parse(notification_eta)
+    else:
+        datetime_object = datetime.now()    
+    push_notification.apply_async(args=(user_list, title, message, target_url, notification_id), eta=datetime_object)
     return JsonResponse({'success': True})
 
 def get_notification_data(request):
