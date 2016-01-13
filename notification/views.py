@@ -35,6 +35,16 @@ def save_client(request):
         response = {'error': e}
     return JsonResponse(response)
 
+def generate_client_id(request):
+    try:
+        id = Client.objects.latest('id').id + 1
+    except Exception:
+        id = 0
+    response = {'client_id': id}
+    response = JsonResponse(response)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
+
 def generate_user_id(request):
     website = request.GET['website']
     try:
