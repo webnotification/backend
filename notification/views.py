@@ -154,7 +154,7 @@ def get_notification_data(request):
                             'title': notification.title,
                             'message': notification.message,
                             'target_url': notification.target_url,
-                            'image': config.NOTIFICATION_IMAGE_BASE_PATH + client_id
+                            'image': config.NOTIFICATION_IMAGE_BASE_PATH + str(client_id)
                 }
         Notification_Queue.objects.filter(notification_id=notification_id, user_id=user_id).delete()
         response = JsonResponse(notification_data)
