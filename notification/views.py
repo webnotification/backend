@@ -114,7 +114,7 @@ def save_push_key(request):
 
 def get_notification_user_list(client_id, group_id):
     percentage = Group.objects.filter(id=group_id)[0].percentage
-    user_list = User.objects.filter(client_id=client_id).exclude(push_key=u'').values("id", "push_key")   
+    user_list = User.objects.filter(client_id=client_id).exclude(push_key=None).values("id", "push_key")   
     shuffled_user_list = sorted(user_list, key=lambda x: random.random())
     final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
     return final_user_list
@@ -165,7 +165,7 @@ def get_notification_data(request):
 
 def get_permission_user_list(client_id, group_id):
     percentage = Group.objects.filter(id=group_id)[0].percentage
-    user_list = User.objects.filter(client_id=client_id, push_key=u'').values("id")   
+    user_list = User.objects.filter(client_id=client_id, push_key=None).values("id")   
     shuffled_user_list = sorted(user_list, key=lambda x: random.random())
     final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
     return final_user_list
