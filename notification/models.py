@@ -7,7 +7,7 @@ class Client(models.Model):
     website = models.CharField(max_length=50, unique=True)
 
 class User(models.Model):
-    push_key = models.CharField(max_length=200, unique=True)
+    push_key = models.CharField(max_length=200, blank=True, null=True, unique=True)
     client = models.ForeignKey(Client, on_delete=models.CASCADE)
 
 class Group(models.Model):
