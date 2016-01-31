@@ -3,7 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 class Client(models.Model):
-    # id = models.CharField(max_length=50, primary_key=True)
+    id = models.IntegerField(primary_key=True)
     website = models.CharField(max_length=50, unique=True)
 
 class User(models.Model):

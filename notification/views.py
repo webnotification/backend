@@ -24,7 +24,7 @@ def create_default_groups(client_id):
 
 def save_client(request):
     params = request.GET
-    client_id = params['client_id']
+    client_id = int(params['client_id'])
     website = params['website']
     try:
         client = Client(id=client_id, website=website)
@@ -135,7 +135,7 @@ def send_notification(request):
     record_list = [NotificationResponse(user_id=user['id'], notification_id=notification_id) for user in user_list]
     NotificationResponse.objects.bulk_create(record_list)
     if notification_date!='' and notification_time!='':
-        notification_eta =  notification_date+' '+notification_time+'+5:30'
+        notification_eta =  notification_date+' '+notification_time
         datetime_object = parser.parse(notification_eta)
     else:
         datetime_object = datetime.now()    
