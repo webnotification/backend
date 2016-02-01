@@ -137,6 +137,7 @@ def send_notification(request):
     if notification_date!='' and notification_time!='':
         notification_eta =  notification_date+' '+notification_time
         datetime_object = parser.parse(notification_eta)
+        datetime_object = datetime_object.replace(tzinfo=None) + datetime_object.utcoffset()
     else:
         datetime_object = datetime.now()    
     push_notification.apply_async(args=(user_list, title, message, target_url, notification_id), eta=datetime_object)
