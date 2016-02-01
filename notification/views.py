@@ -24,7 +24,7 @@ def create_default_groups(client_id):
 
 def save_client(request):
     params = request.GET
-    client_id = params['client_id']
+    client_id = int(params['client_id'])
     website = params['website']
     try:
         client = Client(id=client_id, website=website)
@@ -34,6 +34,16 @@ def save_client(request):
     except Exception as e:
         response = {'error': e}
     return JsonResponse(response)
+
+def generate_client_id(request):
+    try:
+        id = Client.objects.latest('id').id + 1
+    except Exception:
+        id = 0
+    response = {'client_id': id}
+    response = JsonResponse(response)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
 
 def generate_user_id(request):
     website = request.GET['website']
@@ -104,7 +114,7 @@ def save_push_key(request):
 
 def get_notification_user_list(client_id, group_id):
     percentage = Group.objects.filter(id=group_id)[0].percentage
-    user_list = User.objects.filter(client_id=client_id).exclude(push_key=u'').values("id", "push_key")   
+    user_list = User.objects.filter(client_id=client_id).exclude(push_key=None).values("id", "push_key")   
     shuffled_user_list = sorted(user_list, key=lambda x: random.random())
     final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
     return final_user_list
@@ -125,8 +135,9 @@ def send_notification(request):
     record_list = [NotificationResponse(user_id=user['id'], notification_id=notification_id) for user in user_list]
     NotificationResponse.objects.bulk_create(record_list)
     if notification_date!='' and notification_time!='':
-        notification_eta =  notification_date+' '+notification_time+'+5:30'
+        notification_eta =  notification_date+' '+notification_time
         datetime_object = parser.parse(notification_eta)
+        datetime_object = datetime_object.replace(tzinfo=None) + datetime_object.utcoffset()
     else:
         datetime_object = datetime.now()    
     push_notification.apply_async(args=(user_list, title, message, target_url, notification_id), eta=datetime_object)
@@ -144,7 +155,7 @@ def get_notification_data(request):
                             'title': notification.title,
                             'message': notification.message,
                             'target_url': notification.target_url,
-                            'image': config.NOTIFICATION_IMAGE_BASE_PATH + client_id
+                            'image': config.NOTIFICATION_IMAGE_BASE_PATH + str(client_id)
                 }
         Notification_Queue.objects.filter(notification_id=notification_id, user_id=user_id).delete()
         response = JsonResponse(notification_data)
@@ -155,7 +166,7 @@ def get_notification_data(request):
 
 def get_permission_user_list(client_id, group_id):
     percentage = Group.objects.filter(id=group_id)[0].percentage
-    user_list = User.objects.filter(client_id=client_id, push_key=u'').values("id")   
+    user_list = User.objects.filter(client_id=client_id, push_key=None).values("id")   
     shuffled_user_list = sorted(user_list, key=lambda x: random.random())
     final_user_list = shuffled_user_list[:(len(shuffled_user_list)*percentage)/100]
     return final_user_list
