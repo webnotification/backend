@@ -47,8 +47,6 @@ def generate_client_id(request):
 
 def generate_user_id(request):
     website = request.GET['website']
-    if website[:4] != 'www.':
-        website = 'www.' + website
     try:
         id = User.objects.latest('id').id + 1
     except User.DoesNotExist:
