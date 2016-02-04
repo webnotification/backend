@@ -18,7 +18,7 @@ def index(request):
     return HttpResponse("Yup, Server is running.")
 
 def create_default_groups(client_id):
-    percentages = [10, 25, 50, 100]
+    percentages = [100, 50, 25, 10]
     record_list = [Group(name=str(percentage)+'% users', percentage=percentage , client_id=client_id) for percentage in percentages]
     Group.objects.bulk_create(record_list)
 
