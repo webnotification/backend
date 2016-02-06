@@ -33,6 +33,7 @@ def save_client(request):
         response = {'success': True}
     except Exception as e:
         response = {'error': e}
+        return HttpResponse(status=400)
     return JsonResponse(response)
 
 def generate_client_id(request):

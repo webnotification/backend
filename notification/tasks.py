@@ -17,7 +17,7 @@ def push_notification(users, title, message, url, notification_id):
                   'Authorization': config.GCM_AUTHORIZATION,
                 } 
         requests.post(config.GCM_URL, data=payload, headers=headers)
-        delete_notification.apply_async(args=(user['id'], notification_id), countdown = config.NOTIFICATION_TIMEOUT)
+        # delete_notification.apply_async(args=(user['id'], notification_id), countdown = config.NOTIFICATION_TIMEOUT)
     return 'Notifications sent'
 
 @shared_task
